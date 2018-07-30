@@ -55,12 +55,12 @@ static u8   be_quiet,               /* Quiet mode                        */
 
 static void find_as(u8* argv0) {
 
-  u8 *afl_path = getenv("AFL_PATH");
+  u8 *afl_path = getenv("AFL_PATH");//getenv是函数名，从环境中取字符串,获取环境变量的值
   u8 *slash, *tmp;
 
   if (afl_path) {
 
-    tmp = alloc_printf("%s/as", afl_path);
+    tmp = alloc_printf("%s/as", afl_path); //获得as程序的路径
 
     if (!access(tmp, X_OK)) {
       as_path = afl_path;
@@ -72,17 +72,17 @@ static void find_as(u8* argv0) {
 
   }
 
-  slash = strrchr(argv0, '/');
-
+  slash = strrchr(argv0, '/');//查找一个字符c在另一个字符串str中末次出现的位置（也就是从str的右侧开始查找字符c首次出现的位置），并返回这个位置的地址。
+                              //获得要编译的程序名
   if (slash) {
 
     u8 *dir;
 
     *slash = 0;
-    dir = ck_strdup(argv0);
+    dir = ck_strdup(argv0);//返回一个指针,指向为复制字符串分配的空间;
     *slash = '/';
 
-    tmp = alloc_printf("%s/afl-as", dir);
+    tmp = alloc_printf("%s/afl-as", dir);//获得afl-as程序的路径
 
     if (!access(tmp, X_OK)) {
       as_path = dir;
@@ -118,11 +118,12 @@ static void edit_params(u32 argc, char** argv) {
 
   cc_params = ck_alloc((argc + 128) * sizeof(u8*));
 
-  name = strrchr(argv[0], '/');
+  name = strrchr(argv[0], '/');//程序名
   if (!name) name = argv[0]; else name++;
 
-  if (!strncmp(name, "afl-clang", 9)) {
-
+  if (!strncmp(name, "afl-clang", 9)) {//若str1与str2的前n个字符相同，则返回0
+                                      //使用clang
+                                      //确定使用的编译器，以及设置对应的环境变量
     clang_mode = 1;
 
     setenv(CLANG_ENV_VAR, "1", 1);
@@ -177,7 +178,7 @@ static void edit_params(u32 argc, char** argv) {
 
   }
 
-  while (--argc) {
+  while (--argc) {//判断附加参数是否正确
     u8* cur = *(++argv);
 
     if (!strncmp(cur, "-B", 2)) {
@@ -305,7 +306,8 @@ int main(int argc, char** argv) {
 
     SAYF(cCYA "afl-cc " cBRI VERSION cRST " by <lcamtuf@google.com>\n");
 
-  } else be_quiet = 1;
+  } 
+  else be_quiet = 1;
 
   if (argc < 2) {
 
@@ -325,11 +327,12 @@ int main(int argc, char** argv) {
 
   }
 
-  find_as(argv[0]);
+  find_as(argv[0]);//确定as以及afl-as路径
 
-  edit_params(argc, argv);
+  edit_params(argc, argv);//处理参数，验证参数有效性
 
-  execvp(cc_params[0], (char**)cc_params);
+  execvp(cc_params[0], (char**)cc_params);//会从PATH 环境变量所指的目录中查找符合参数file 的文件名, 找到后便执行该文件, 然后将第二个参数argv 传给该欲执行的文件。
+                                          //会在用户的参数基础上加上其他参数
 
   FATAL("Oops, failed to execute '%s' - check your PATH", cc_params[0]);
 

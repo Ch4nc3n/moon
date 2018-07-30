@@ -1348,7 +1348,7 @@ EXP_ST void setup_shm(void) {
   memset(virgin_tmout, 255, MAP_SIZE);
   memset(virgin_crash, 255, MAP_SIZE);
 
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);//用于Linux进程通信共享内存
 
   if (shm_id < 0) PFATAL("shmget() failed");
 
@@ -7723,7 +7723,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)//分析命令行参数
 
     switch (opt) {
 
@@ -7899,12 +7899,12 @@ int main(int argc, char** argv) {
 
   if (optind == argc || !in_dir || !out_dir) usage(argv[0]);
 
-  setup_signal_handlers();
-  check_asan_opts();
+  setup_signal_handlers();//初始化signal_handler
+  check_asan_opts();//检查asan_opts
 
-  if (sync_id) fix_up_sync();
+  if (sync_id) fix_up_sync();//解决参数(运行)冲突
 
-  if (!strcmp(in_dir, out_dir))
+  if (!strcmp(in_dir, out_dir))//输入输出路径不能一致
     FATAL("Input and output directories can't be the same");
 
   if (dumb_mode) {
@@ -7936,28 +7936,28 @@ int main(int argc, char** argv) {
   if (getenv("AFL_LD_PRELOAD"))
     FATAL("Use AFL_PRELOAD instead of AFL_LD_PRELOAD");
 
-  save_cmdline(argc, argv);
+  save_cmdline(argc, argv);//保存参数
 
-  fix_up_banner(argv[optind]);
+  fix_up_banner(argv[optind]);//在use_banner上为argv[optind]建一个id
 
-  check_if_tty();
+  check_if_tty();//检查是否是tty运行状态（不知tty为何物）
 
-  get_core_count();
+  get_core_count();//确认CPU核数
 
-#ifdef HAVE_AFFINITY
+#ifdef HAVE_AFFINITY //
   bind_to_free_cpu();
 #endif /* HAVE_AFFINITY */
 
-  check_crash_handling();
-  check_cpu_governor();
+  check_crash_handling();//检查奔溃处理
+  check_cpu_governor();//检查CPU调节器
 
-  setup_post();
-  setup_shm();
-  init_count_class16();
+  setup_post();//Load postprocessor
+  setup_shm();//设置共享内存
+  init_count_class16();//初始化class16(不知道是什么)
 
-  setup_dirs_fds();
-  read_testcases();
-  load_auto();
+  setup_dirs_fds();//建立各类输出目录以及相关句柄
+  read_testcases();//将样例加入队列
+  load_auto();//加载自动生成的额外资源？？？？？？
 
   pivot_inputs();
 

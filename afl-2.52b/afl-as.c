@@ -132,7 +132,7 @@ static void edit_params(int argc, char** argv) {
 
   as_params[argc] = 0;
 
-  for (i = 1; i < argc - 1; i++) {
+  for (i = 1; i < argc - 1; i++) {//处理参数
 
     if (!strcmp(argv[i], "--64")) use_64bit = 1;
     else if (!strcmp(argv[i], "--32")) use_64bit = 0;
@@ -175,6 +175,9 @@ static void edit_params(int argc, char** argv) {
   }
 
 #endif /* __APPLE__ */
+
+//input_file 为afl-gcc生成的汇编文件
+//modified_file 为在input_file文件中插桩之后的文件
 
   input_file = argv[argc - 1];
 
@@ -363,10 +366,10 @@ static void add_instrumentation(void) {
 
     if (line[0] == '\t') {
 
-      if (line[1] == 'j' && line[2] != 'm' && R(100) < inst_ratio) {
+      if (line[1] == 'j' && line[2] != 'm' && R(100) < inst_ratio) { //在
 
         fprintf(outf, use_64bit ? trampoline_fmt_64 : trampoline_fmt_32,
-                R(MAP_SIZE));
+                R(MAP_SIZE)); //0到MAP_SIZE之间的一个随机数
 
         ins_lines++;
 
@@ -499,13 +502,14 @@ int main(int argc, char** argv) {
 
   }
 
-  gettimeofday(&tv, &tz);
+  gettimeofday(&tv, &tz);//获得当前精确时间,tv是保存获取时间结果的结构体，参数tz用于保存时区结果
 
+  //getpid()取得进程识别码
   rand_seed = tv.tv_sec ^ tv.tv_usec ^ getpid();
 
   srandom(rand_seed);
 
-  edit_params(argc, argv);
+  edit_params(argc, argv);//处理参数
 
   if (inst_ratio_str) {
 
@@ -528,11 +532,11 @@ int main(int argc, char** argv) {
     inst_ratio /= 3;
   }
 
-  if (!just_version) add_instrumentation();
+  if (!just_version) add_instrumentation();//代码插桩，主要是在jmp指令后面插入代码
 
   if (!(pid = fork())) {
 
-    execvp(as_params[0], (char**)as_params);
+    execvp(as_params[0], (char**)as_params);//利用afl-as将汇编文件转为可执行文件
     FATAL("Oops, failed to execute '%s' - check your PATH", as_params[0]);
 
   }

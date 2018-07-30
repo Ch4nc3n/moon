@@ -161,7 +161,7 @@ static const u8* main_payload_32 =
 
   "__afl_maybe_log:\n"
   "\n"
-  "  lahf\n"
+  "  lahf\n"  //用于将标志寄存器的低八位送入AH，即将标志寄存器FLAGS中的SF、ZF、AF、PF、CF五个标志位分别传送AH的对应位
   "  seto %al\n"
   "\n"
   "  /* Check if SHM region is already mapped. */\n"
