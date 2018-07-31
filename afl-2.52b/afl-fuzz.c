@@ -1976,7 +1976,7 @@ static void destroy_extras(void) {
 EXP_ST void init_forkserver(char** argv) {
 
   static struct itimerval it;
-  int st_pipe[2], ctl_pipe[2];
+  int st_pipe[2], ctl_pipe[2];//通过管道进行通信。具体使用了2个管道，一个用于传递状态，另一个用于传递命令：
   int status;
   s32 rlen;
 
@@ -1984,7 +1984,7 @@ EXP_ST void init_forkserver(char** argv) {
 
   if (pipe(st_pipe) || pipe(ctl_pipe)) PFATAL("pipe() failed");
 
-  forksrv_pid = fork();
+  forksrv_pid = fork();//fork子进程作为fork server
 
   if (forksrv_pid < 0) PFATAL("fork() failed");
 
@@ -2364,7 +2364,8 @@ static u8 run_target(char** argv, u32 timeout) {
     /* In non-dumb mode, we have the fork server up and running, so simply
        tell it to have at it, and then read back PID. */
 
-    if ((res = write(fsrv_ctl_fd, &prev_timed_out, 4)) != 4) {
+    if ((res = write(fsrv_ctl_fd, &prev_timed_out, 4)) != 4) {//在fork server启动完成后，一旦需要执行某个测试用例，则fuzzer会调用run_target()方法。在此方法中，
+                                                              //便是通过命令管道，通知fork server准备fork；并通过状态管道，获取子进程pid：
 
       if (stop_soon) return 0;
       RPFATAL(res, "Unable to request new process from fork server (OOM?)");
@@ -2399,7 +2400,8 @@ static u8 run_target(char** argv, u32 timeout) {
 
     s32 res;
 
-    if ((res = read(fsrv_st_fd, &status, 4)) != 4) {
+    if ((res = read(fsrv_st_fd, &status, 4)) != 4) {//随后，fuzzer再次读取状态管道，获取子进程退出状态，
+                                                    //并由此来判断子进程结束的原因，例如正常退出、超时、崩溃等，并进行相应的记录。
 
       if (stop_soon) return 0;
       RPFATAL(res, "Unable to communicate with fork server (OOM?)");
@@ -2435,7 +2437,7 @@ static u8 run_target(char** argv, u32 timeout) {
 
   /* Report outcome to caller. */
 
-  if (WIFSIGNALED(status) && !stop_soon) {
+  if (WIFSIGNALED(status) && !stop_soon) {//判断子进程结束的原因，例如正常退出、超时、崩溃等，并进行相应的记录。
 
     kill_signal = WTERMSIG(status);
 
@@ -5042,7 +5044,7 @@ static u8 fuzz_one(char** argv) {
   }
 
   /************
-   * TRIMMING *
+   * TRIMMING * 
    ************/
 
   if (!dumb_mode && !queue_cur->trim_done) {
@@ -5089,7 +5091,7 @@ static u8 fuzz_one(char** argv) {
   doing_det = 1;
 
   /*********************************************
-   * SIMPLE BITFLIP (+dictionary construction) *
+   * SIMPLE BITFLIP (+dictionary construction) * simple bitflip
    *********************************************/
 
 #define FLIP_BIT(_ar, _b) do { \
@@ -5102,7 +5104,7 @@ static u8 fuzz_one(char** argv) {
 
   stage_short = "flip1";
   stage_max   = len << 3;
-  stage_name  = "bitflip 1/1";
+  stage_name  = "bitflip 1/1";//每次翻转1个bit，按照每1个bit的步长从头开始
 
   stage_val_type = STAGE_VAL_NONE;
 
@@ -5151,7 +5153,8 @@ static u8 fuzz_one(char** argv) {
 
       u32 cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
 
-      if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
+      if (stage_cur == stage_max - 1 && cksum == prev_cksum) {//MAX_AUTO_EXTRA 最大的字典长度
+                                                              //MIN_AUTO_EXTRA 最小的字典长度
 
         /* If at end of file and we are still collecting a string, grab the
            final character and force output. */
@@ -5196,7 +5199,7 @@ static u8 fuzz_one(char** argv) {
 
   /* Two walking bits. */
 
-  stage_name  = "bitflip 2/1";
+  stage_name  = "bitflip 2/1";//每次翻转相邻的2个bit，按照每1个bit的步长从头开始
   stage_short = "flip2";
   stage_max   = (len << 3) - 1;
 
@@ -5224,7 +5227,7 @@ static u8 fuzz_one(char** argv) {
   /* Four walking bits. */
 
   stage_name  = "bitflip 4/1";
-  stage_short = "flip4";
+  stage_short = "flip4";//每次翻转相邻的4个bit，按照每1个bit的步长从头开始
   stage_max   = (len << 3) - 3;
 
   orig_hit_cnt = new_hit_cnt;
@@ -5279,7 +5282,7 @@ static u8 fuzz_one(char** argv) {
   /* Walking byte. */
 
   stage_name  = "bitflip 8/8";
-  stage_short = "flip8";
+  stage_short = "flip8";//每次翻转相邻的8个bit，按照每8个bit的步长从头开始，即依次对每个byte做翻转
   stage_max   = len;
 
   orig_hit_cnt = new_hit_cnt;
@@ -5297,7 +5300,8 @@ static u8 fuzz_one(char** argv) {
        even when fully flipped - and we skip them during more expensive
        deterministic stages, such as arithmetics or known ints. */
 
-    if (!eff_map[EFF_APOS(stage_cur)]) {
+    if (!eff_map[EFF_APOS(stage_cur)]) {//在对每个byte进行翻转时，如果其造成执行路径与原始路径不一致，就
+                                        //将该byte在effector map中标记为1，即“有效”的，否则标记为0，即“无效”的。
 
       u32 cksum;
 
@@ -5349,7 +5353,7 @@ static u8 fuzz_one(char** argv) {
   if (len < 2) goto skip_bitflip;
 
   stage_name  = "bitflip 16/8";
-  stage_short = "flip16";
+  stage_short = "flip16";//每次翻转相邻的16个bit，按照每8个bit的步长从头开始，即依次对每个word做翻转
   stage_cur   = 0;
   stage_max   = len - 1;
 
@@ -5386,7 +5390,7 @@ static u8 fuzz_one(char** argv) {
   /* Four walking bytes. */
 
   stage_name  = "bitflip 32/8";
-  stage_short = "flip32";
+  stage_short = "flip32";//每次翻转相邻的32个bit，按照每8个bit的步长从头开始，即依次对每个dword做翻转
   stage_cur   = 0;
   stage_max   = len - 3;
 
@@ -5428,7 +5432,7 @@ skip_bitflip:
   /* 8-bit arithmetics. */
 
   stage_name  = "arith 8/8";
-  stage_short = "arith8";
+  stage_short = "arith8";//每次对8个bit进行加减运算，按照每8个bit的步长从头开始，即对文件的每个byte进行整数加减变异
   stage_cur   = 0;
   stage_max   = 2 * len * ARITH_MAX;
 
@@ -5494,7 +5498,7 @@ skip_bitflip:
   if (len < 2) goto skip_arith;
 
   stage_name  = "arith 16/8";
-  stage_short = "arith16";
+  stage_short = "arith16";//每次对16个bit进行加减运算，按照每8个bit的步长从头开始，即对文件的每个word进行整数加减变异
   stage_cur   = 0;
   stage_max   = 4 * (len - 1) * ARITH_MAX;
 
@@ -5588,7 +5592,7 @@ skip_bitflip:
   if (len < 4) goto skip_arith;
 
   stage_name  = "arith 32/8";
-  stage_short = "arith32";
+  stage_short = "arith32";//每次对32个bit进行加减运算，按照每8个bit的步长从头开始，即对文件的每个dword进行整数加减变异
   stage_cur   = 0;
   stage_max   = 4 * (len - 3) * ARITH_MAX;
 
@@ -5682,7 +5686,7 @@ skip_arith:
    **********************/
 
   stage_name  = "interest 8/8";
-  stage_short = "int8";
+  stage_short = "int8";//每次对8个bit进替换，按照每8个bit的步长从头开始，即对文件的每个byte进行替换
   stage_cur   = 0;
   stage_max   = len * sizeof(interesting_8);
 
@@ -5737,7 +5741,7 @@ skip_arith:
   if (no_arith || len < 2) goto skip_interest;
 
   stage_name  = "interest 16/8";
-  stage_short = "int16";
+  stage_short = "int16";//每次对16个bit进替换，按照每8个bit的步长从头开始，即对文件的每个word进行替换
   stage_cur   = 0;
   stage_max   = 2 * (len - 1) * (sizeof(interesting_16) >> 1);
 
@@ -5805,7 +5809,7 @@ skip_arith:
   /* Setting 32-bit integers, both endians. */
 
   stage_name  = "interest 32/8";
-  stage_short = "int32";
+  stage_short = "int32";//每次对32个bit进替换，按照每8个bit的步长从头开始，即对文件的每个dword进行替换
   stage_cur   = 0;
   stage_max   = 2 * (len - 3) * (sizeof(interesting_32) >> 2);
 
@@ -5879,7 +5883,7 @@ skip_interest:
 
   /* Overwrite with user-supplied extras. */
 
-  stage_name  = "user extras (over)";
+  stage_name  = "user extras (over)";//从头开始，将用户提供的tokens依次替换到原文件中
   stage_short = "ext_UO";
   stage_cur   = 0;
   stage_max   = extras_cnt * len;
@@ -5938,7 +5942,7 @@ skip_interest:
   /* Insertion of user-supplied extras. */
 
   stage_name  = "user extras (insert)";
-  stage_short = "ext_UI";
+  stage_short = "ext_UI";//从头开始，将用户提供的tokens依次插入到原文件中
   stage_cur   = 0;
   stage_max   = extras_cnt * len;
 
@@ -5989,7 +5993,7 @@ skip_user_extras:
   if (!a_extras_cnt) goto skip_extras;
 
   stage_name  = "auto extras (over)";
-  stage_short = "ext_AO";
+  stage_short = "ext_AO";//从头开始，将自动检测的tokens依次替换到原文件中
   stage_cur   = 0;
   stage_max   = MIN(a_extras_cnt, USE_AUTO_EXTRAS) * len;
 
@@ -7978,7 +7982,7 @@ int main(int argc, char** argv) {
   else
     use_argv = argv + optind;
 
-  perform_dry_run(use_argv);
+  perform_dry_run(use_argv);//
 
   cull_queue();
 

@@ -164,21 +164,25 @@ static const u8* main_payload_32 =
   "  lahf\n"  //用于将标志寄存器的低八位送入AH，即将标志寄存器FLAGS中的SF、ZF、AF、PF、CF五个标志位分别传送AH的对应位
   "  seto %al\n"
   "\n"
-  "  /* Check if SHM region is already mapped. */\n"
+  "  /* Check if SHM region is already mapped. */\n" //检查是否已经将共享内存映射完成：
   "\n"
   "  movl  __afl_area_ptr, %edx\n"
   "  testl %edx, %edx\n"
   "  je    __afl_setup\n"
   "\n"
-  "__afl_store:\n"
+  "__afl_store:\n"//通过调用shmat()，target将这块共享内存也映射到了自己的内存空间中，
+                  //并将其地址保存在__afl_area_ptr及edx中。由此，便完成了fuzzer与target之间共享内存的设置。
+                  //如果使用了fork server模式，获取共享内存的操作，是在fork server中进行；随后fork出来的子进程，只需直接使用这个共享内存即可。
   "\n"
   "  /* Calculate and store hit for the code location specified in ecx. There\n"
   "     is a double-XOR way of doing this without tainting another register,\n"
   "     and we use it on 64-bit systems; but it's slower for 32-bit ones. */\n"
   "\n"
-#ifndef COVERAGE_ONLY
-  "  movl __afl_prev_loc, %edi\n"
-  "  xorl %ecx, %edi\n"
+#ifndef COVERAGE_ONLY       //cur_location = <COMPILE_TIME_RANDOM>;
+                            //shared_mem[cur_location ^ prev_location]++; 
+                            //prev_location = cur_location >> 1;
+  "  movl __afl_prev_loc, %edi\n"//__afl_prev_loc保存的是前一次跳转的”位置”
+  "  xorl %ecx, %edi\n"           //ecx的值设为0到MAP_SIZE之间的某个随机数
   "  shrl $1, %ecx\n"
   "  movl %ecx, __afl_prev_loc\n"
 #else
@@ -188,7 +192,7 @@ static const u8* main_payload_32 =
 #ifdef SKIP_COUNTS
   "  orb  $1, (%edx, %edi, 1)\n"
 #else
-  "  incb (%edx, %edi, 1)\n"
+  "  incb (%edx, %edi, 1)\n"//
 #endif /* ^SKIP_COUNTS */
   "\n"
   "__afl_return:\n"
@@ -263,7 +267,7 @@ static const u8* main_payload_32 =
   "  cmpl  $4, %eax\n"
   "  jne   __afl_fork_resume\n"
   "\n"
-  "__afl_fork_wait_loop:\n"
+  "__afl_fork_wait_loop:\n"//fork server进入等待状态__afl_fork_wait_loop，读取命令管道，直到fuzzer通知其开始fork：
   "\n"
   "  /* Wait for parent by reading from the pipe. Abort if read fails. */\n"
   "\n"
@@ -281,15 +285,17 @@ static const u8* main_payload_32 =
   "     caches getpid() results and offers no way to update the value, breaking\n"
   "     abort(), raise(), and a bunch of other things :-( */\n"
   "\n"
-  "  call fork\n"
+  "  call fork\n"//一旦fork server接收到fuzzer的信息，便调用fork()，得到父进程和子进程：
   "\n"
   "  cmpl $0, %eax\n"
   "  jl   __afl_die\n"
-  "  je   __afl_fork_resume\n"
+  "  je   __afl_fork_resume\n"//子进程跳到__afl_fork_resume去执行
   "\n"
   "  /* In parent process: write PID to pipe, then wait for child. */\n"
   "\n"
-  "  movl  %eax, __afl_fork_pid\n"
+  "  movl  %eax, __afl_fork_pid\n" //父进程则仍然作为fork server运行，其会将子进程的pid通过状态管道发送给fuzzer，
+                                    //并等待子进程执行完毕；一旦子进程执行完毕，则再通过状态管道，
+                                    //将其结束状态发送给fuzzer；之后再次进入等待状态__afl_fork_wait_loop：
   "\n"
   "  pushl $4              /* length    */\n"
   "  pushl $__afl_fork_pid /* data      */\n"
@@ -316,7 +322,7 @@ static const u8* main_payload_32 =
   "\n"
   "  jmp __afl_fork_wait_loop\n"
   "\n"
-  "__afl_fork_resume:\n"
+  "__afl_fork_resume:\n"//子进程是实际执行target的进程，其跳转到__afl_fork_resume。在这里会关闭不再需要的管道，并继续执行：
   "\n"
   "  /* In child process: close fds, resume execution. */\n"
   "\n"
