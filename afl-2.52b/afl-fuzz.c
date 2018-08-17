@@ -2363,7 +2363,8 @@ static u8 run_target(char** argv, u32 timeout) {
 
     /* In non-dumb mode, we have the fork server up and running, so simply
        tell it to have at it, and then read back PID. */
-
+                      //control
+   //查看控制管道是否可写
     if ((res = write(fsrv_ctl_fd, &prev_timed_out, 4)) != 4) {//在fork server启动完成后，一旦需要执行某个测试用例，则fuzzer会调用run_target()方法。在此方法中，
                                                               //便是通过命令管道，通知fork server准备fork；并通过状态管道，获取子进程pid：
 
@@ -2371,7 +2372,9 @@ static u8 run_target(char** argv, u32 timeout) {
       RPFATAL(res, "Unable to request new process from fork server (OOM?)");
 
     }
-
+           
+           
+     //查看状态管道是否可读                 //state
     if ((res = read(fsrv_st_fd, &child_pid, 4)) != 4) {
 
       if (stop_soon) return 0;
@@ -2400,6 +2403,8 @@ static u8 run_target(char** argv, u32 timeout) {
 
     s32 res;
 
+
+    //读取状态管道内容
     if ((res = read(fsrv_st_fd, &status, 4)) != 4) {//随后，fuzzer再次读取状态管道，获取子进程退出状态，
                                                     //并由此来判断子进程结束的原因，例如正常退出、超时、崩溃等，并进行相应的记录。
 

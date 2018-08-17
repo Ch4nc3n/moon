@@ -778,4 +778,3 @@ int main(int argc, char** argv) {
   exit(child_crashed * 2 + child_timed_out);
 
 }
-
